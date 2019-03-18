@@ -1,0 +1,20 @@
+here's my reading list for you
+
+1. create a new virtualenv and pip install torch and notebook
+
+2. go through this https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html
+
+3. go through https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+
+and by "go through" i mean copy every line into the notebook, execute it, and try to make sure you understand it, and commit the notebook to your repo (edited)
+- try changing/playing with things
+
+4. Implement Linear Regression (trivial NN case) in pytorch. Use provided notebook as a go-by as needed.
+
+* continue with data processing and loading example from 2. above?
+
+
+Questions:
+
+In the tensor + autograd example, loss.backward() updates w1.grad and w2.grad. Is this because torch is tracking _every_ Tensor that was ever used in a computation that was assigned to loss?
+
