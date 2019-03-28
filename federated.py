@@ -10,20 +10,21 @@ import torch.optim
 
 class FederatedManager:
 
-    def __init__(self, dataloaders, make_model, loss_fn, Xtest, ytest,
-                 n_epochs=1, *args, **kwargs):
+    def __init__(self, dataloaders, model, loss_fn, lr, Xtest, ytest,
+                 n_epochs, *args, **kwargs):
         self.n_workers = len(dataloaders)
         self.n_epochs = n_epochs
         self.manager_loss_history = []
-        self.make_model = make_model
-        self.model = self.make_model()
+        #self.make_model = make_model
+        self.model = model
         self.model.train(False)
         self.loss_fn = loss_fn
+        self.lr = lr
         # The notebook handles any necessary Tensor type conversions
         self.Xtest = Xtest
         self.ytest = ytest
         self.workers = [
-            FederatedWorker(self, dl, loss_fn, n_epochs=n_epochs, *args, **kwargs)
+            FederatedWorker(self, dl, loss_fn, lr, n_epochs, *args, **kwargs)
             for dl in dataloaders
         ]
         self.worker_loss_histories = [[] for _ in self.workers]
@@ -65,7 +66,7 @@ class FederatedManager:
         """
         Return a copy of the current manager model.
         """
-        model_copy = self.make_model()
+        model_copy = self.model
         model_copy.load_state_dict(self.model.state_dict())
         return model_copy
 
@@ -94,7 +95,7 @@ class FederatedManager:
 class FederatedWorker:
 
     def __init__(
-        self, manager, dataloader, loss_fn, n_epochs=1, lr=1e-3, participant=True
+        self, manager, dataloader, loss_fn, lr, n_epochs, participant=True
     ):
         self.manager = manager
         self.dataloader = dataloader
@@ -123,7 +124,8 @@ class FederatedWorker:
                 self.loss_history["train"].append(train_loss.item())
                 # below is expensive, so only do it once per round
                 # self.loss_history["test"].append(self.manager.evaluate_loss(self.model))
-                if i % 100 == 0: print("round: ", i, " loss: ", self.loss_history["train"][-1])
+                if i%100==0: 
+                    print("Worker:", id(self) % 100000, "Batch: %05d" % i, "Loss: %.5f" % self.loss_history["train"][-1])
         return {
             "state_dict": self.model.state_dict(),
             "n_samples": self.n_samples
