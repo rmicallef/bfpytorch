@@ -10,7 +10,7 @@ import torch.optim
 
 class FederatedManager:
 
-    def __init__(self, dataloaders, model, loss_fn, lr, Xtest, ytest,
+    def __init__(self, dataloaders, model, loss_fn, lr, test_dset,
                  n_epochs, *args, **kwargs):
         self.n_workers = len(dataloaders)
         self.n_epochs = n_epochs
@@ -20,9 +20,11 @@ class FederatedManager:
         self.model.train(False)
         self.loss_fn = loss_fn
         self.lr = lr
-        # The notebook handles any necessary Tensor type conversions
-        self.Xtest = Xtest
-        self.ytest = ytest
+
+        Xtest, ytest = list(zip(*test_dset))
+
+        self.Xtest = torch.stack(Xtest)
+        self.ytest = torch.LongTensor(ytest)
         self.workers = [
             FederatedWorker(self, dl, loss_fn, lr, n_epochs, *args, **kwargs)
             for dl in dataloaders
@@ -115,6 +117,7 @@ class FederatedWorker:
         optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         self.model.train(True)
         for epoch in range(self.n_epochs):
+            print("    Worker:", id(self) % 1000, "Epoch: ", epoch)
             for i, (x, y) in enumerate(self.dataloader):
                 optimizer.zero_grad()
                 ypred = self.model(x)
@@ -125,7 +128,8 @@ class FederatedWorker:
                 # below is expensive, so only do it once per round
                 # self.loss_history["test"].append(self.manager.evaluate_loss(self.model))
                 if i%100==0: 
-                    print("Worker:", id(self) % 100000, "Batch: %05d" % i, "Loss: %.5f" % self.loss_history["train"][-1])
+                    print("        Worker:", id(self) % 1000, "Batch: %03d" % i, "Loss: %.4f" % self.loss_history["train"][-1])
+
         return {
             "state_dict": self.model.state_dict(),
             "n_samples": self.n_samples
