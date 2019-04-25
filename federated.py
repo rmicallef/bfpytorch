@@ -115,10 +115,11 @@ class FederatedWorker:
         Train for n_epochs, then return the state dictionary of the model and
         the amount of training data used.
         """
+        num_batches = len(self.dataloader)
+
         optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
         self.model.train(True)
         for epoch in range(self.n_epochs):
-            print("    Worker:", id(self) % 10000, "Epoch: ", epoch)
             for i, (x, y) in enumerate(self.dataloader):
                 optimizer.zero_grad()
                 ypred = self.model(x)
@@ -128,8 +129,10 @@ class FederatedWorker:
                 self.loss_history["train"].append(train_loss.item())
                 # below is expensive, so only do it once per round
                 # self.loss_history["test"].append(self.manager.evaluate_loss(self.model))
-                if i%100==0: 
-                    print("        Worker:", id(self) % 10000, "Batch: %03d" % i, "Loss: %.4f" % self.loss_history["train"][-1])
+                if i%int(num_batches / 4)==0:
+                    print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i, "\tlocal loss: %.4f" % self.loss_history["train"][-1])
+                if i==num_batches-1:
+                    print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i+1, "\tlocal loss: %.4f" % self.loss_history["train"][-1], "\n")
 
         return {
             "state_dict": self.model.state_dict(),
