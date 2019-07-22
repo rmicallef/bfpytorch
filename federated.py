@@ -129,10 +129,12 @@ class FederatedWorker:
                 self.loss_history["train"].append(train_loss.item())
                 # below is expensive, so only do it once per round
                 # self.loss_history["test"].append(self.manager.evaluate_loss(self.model))
-                if i%int(num_batches / 4)==0:
-                    print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i, "\tlocal loss: %.4f" % self.loss_history["train"][-1])
-                if i==num_batches-1:
-                    print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i+1, "\tlocal loss: %.4f" % self.loss_history["train"][-1], "\n")
+                # if i%int(num_batches / 2)==0:
+                #     print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i, "\tlocal loss: %.4f" % self.loss_history["train"][-1])
+                # if i==num_batches-1:
+                #     print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i+1, "\tlocal loss: %.4f" % self.loss_history["train"][-1], "\n")
+
+        print("\tWorker: %.4d" % (id(self) % 10000), "\tlocal loss: %.4f" % self.loss_history["train"][-1])
 
         return {
             "state_dict": self.model.state_dict(),
