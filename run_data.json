@@ -36,3 +36,7 @@
 
 {"Date": "2019-08-07 15:44:37", "Global Start Time": 1565207077.3375742, "Batch Size": 128, "Skew Bias": 0.5, "Examples Per Skewed Loader": 256, "Number of Workers": 3, "Stacking Time": 26.015615463256836, "Stacking Time per Loader": 8.671871821085611, "Learning Rate": 0.05, "Epochs per Round": 3, "Federated Training Rounds": 10, "Federated Training Time": 43.8322434425354, "Final Global Loss": 1.9660507440567017, "Global End Time": 1565220649.2201946, "Global Time": 13571.882620334625}
 
+{"Date": "2019-08-09 17:00:18", "Global Start Time": 1565384418.4904816, "Batch Size": 512, "Skew Bias": 0.2, "Examples Per Skewed Loader": 512, "Number of Workers": 10, "Stacking Time": 87.38215231895447, "Stacking Time per Loader": 8.738215231895447, "Learning Rate": 0.05, "Epochs per Round": 3, "Federated Training Rounds": 10, "Federated Training Time": 314.9900896549225, "Final Global Loss": 0.148409903049469, "Global End Time": 1565385109.752664, "Global Time": 691.2621824741364}
+
+{"Date": "2019-08-12 12:03:17", "Global Start Time": 1565625797.4724996, "Batch Size": 512, "Skew Bias": 0.2, "Examples Per Skewed Loader": 512, "Number of Workers": 10, "Stacking Time": 92.34545063972473, "Stacking Time per Loader": 9.234545063972472, "Learning Rate": 0.05, "Epochs per Round": 3, "Federated Training Rounds": 6, "Federated Training Time": 230.6028470993042, "Final Global Loss": 0.20949231088161469, "Global End Time": 1565626328.3842776, "Global Time": 530.911777973175}
+

@@ -134,7 +134,7 @@ class FederatedWorker:
                 # if i==num_batches-1:
                 #     print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i+1, "\tlocal loss: %.4f" % self.loss_history["train"][-1], "\n")
 
-        print("\tWorker: %.4d" % (id(self) % 10000), "\tlocal loss: %.4f" % self.loss_history["train"][-1])
+        print("\tWorker: %.4d" % (id(self) % 10000), "\tlocal loss: %.2f" % self.loss_history["train"][-1])
 
         return {
             "state_dict": self.model.state_dict(),
