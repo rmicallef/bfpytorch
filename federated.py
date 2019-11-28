@@ -1,50 +1,52 @@
 """
 Simulate Federated Learning on a single machine in PyTorch
-
-To use, create a FederatedManager and call it's `round` method several times.
+To use, create a FederatedManager and call its `round` method several times.
 """
 import torch
 import torch.nn
 import torch.optim
 
 
+def consume_dataset(dataset):
+    data = list(zip(*dataset))
+    X = torch.stack(data[0])
+    y = torch.tensor(data[1])
+    return X, y
+
+
 class FederatedManager:
 
-    def __init__(self, dataloaders, make_model, loss_fn, lr, test_dset,
-                 n_epochs, *args, **kwargs):
+    def __init__(self, dataloaders, make_model, loss_fn, test, n_epochs=1, lr=1e-2,
+                 *args, **kwargs):
         self.n_workers = len(dataloaders)
         self.n_epochs = n_epochs
-        self.manager_loss_history = []
+        self.lr = lr
+        self.history = {"test_loss": [], "test_acc": []}
         self.make_model = make_model
         self.model = self.make_model()
         self.model.train(False)
         self.loss_fn = loss_fn
-        self.lr = lr
-
-        Xtest, ytest = list(zip(*test_dset))
-
-        self.Xtest = torch.stack(Xtest)
-        self.ytest = torch.LongTensor(ytest)
-        self.workers = [
-            FederatedWorker(self, dl, loss_fn, lr, n_epochs, *args, **kwargs)
-            for dl in dataloaders
-        ]
+        self.Xtest, self.ytest = consume_dataset(test)
+        self.workers = []
+        for i, dl in enumerate(dataloaders):
+            self.workers.append(FederatedWorker(i, self, dl, loss_fn,
+                                                n_epochs=n_epochs, lr=lr, *args,
+                                                **kwargs))
         self.worker_loss_histories = [[] for _ in self.workers]
 
     def round(self):
         """
         Do a round of federated learning:
-
          - instruct each worker to train and return its model
          - replace the server model the weighted average of the worker models
          - replace the worker models with the server model
-
         Workers with `participant=False` train but are not included in the
         weighted average and do not receive a copy of the server model.
         """
         updates = [w.train() for w in self.workers]
-        self.record_loss()
-        self.fedavg([u for u, w in zip(updates, self.workers) if w.participant])
+        self.fedavg(
+            [u for u, w in zip(updates, self.workers) if w.participant]
+        )
         self.push_model(w for w in self.workers if w.participant)
         self.record_loss()
 
@@ -54,12 +56,14 @@ class FederatedManager:
         """
         N = sum(u["n_samples"] for u in updates)
         for key, value in self.model.state_dict().items():
-            weight_sum = (u["state_dict"][key] * u["n_samples"] for u in updates)
+            weight_sum = (
+                u["state_dict"][key] * u["n_samples"] for u in updates
+            )
             value[:] = sum(weight_sum) / N
 
     def push_model(self, workers):
         """
-        Pust manager model to a list of workers.
+        Push manager model to a list of workers.
         """
         for worker in workers:
             worker.model = self.copy_model()
@@ -72,34 +76,37 @@ class FederatedManager:
         model_copy.load_state_dict(self.model.state_dict())
         return model_copy
 
-    def evaluate_loss(self, model=None):
+    def evaluate_model(self, model=None):
         """
-        Compute the loss of model on test set.
+        Compute the loss and accuracy of model on test set.
         """
         model = model or self.model
         was_training = model.training
         model.train(False)
         with torch.no_grad():
-            loss = self.loss_fn(model(self.Xtest), self.ytest).item()
+            output = model(self.Xtest)
+            loss = self.loss_fn(output, self.ytest).item()
+            pred = output.argmax(dim=1, keepdim=True)
+            correct = pred.eq(self.ytest.view_as(pred)).sum().item()
         model.train(was_training)
-        return loss
+        return loss, 100. * correct / len(self.ytest)
 
     def record_loss(self):
         """
         Record loss of manager model and all worker models on test set.
         """
-        self.manager_loss_history.append(self.evaluate_loss())
-        for i, worker in enumerate(self.workers):
-            worker_loss = self.evaluate_loss(model=worker.model)
-            self.worker_loss_histories[i].append(worker_loss)
-            # print(worker_loss_histories[i])
+        loss_accuracy = self.evaluate_model()
+        self.history["test_loss"].append(loss_accuracy[0])
+        self.history["test_acc"].append(loss_accuracy[1])
 
 
 class FederatedWorker:
 
     def __init__(
-        self, manager, dataloader, loss_fn, lr, n_epochs, participant=True
+        self, name, manager, dataloader, loss_fn, n_epochs=1, lr=1e-2,
+        momentum=0.5, participant=True
     ):
+        self.name = name
         self.manager = manager
         self.dataloader = dataloader
         self.n_epochs = n_epochs
@@ -107,17 +114,17 @@ class FederatedWorker:
         self.participant = participant
         self.model = manager.copy_model()
         self.n_samples = len(self.dataloader.dataset)
-        self.loss_history = {"train": [], "test": []}
+        self.history = {"train_loss": [], "test_loss": [], "test_acc": []}
         self.lr = lr
+        self.momentum = momentum
 
     def train(self):
         """
         Train for n_epochs, then return the state dictionary of the model and
         the amount of training data used.
         """
-        num_batches = len(self.dataloader)
-
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr,
+                                    momentum=self.momentum)
         self.model.train(True)
         for epoch in range(self.n_epochs):
             for i, (x, y) in enumerate(self.dataloader):
@@ -126,15 +133,16 @@ class FederatedWorker:
                 train_loss = self.loss_fn(ypred, y)
                 train_loss.backward()
                 optimizer.step()
-                self.loss_history["train"].append(train_loss.item())
-                # below is expensive, so only do it once per round
-                # self.loss_history["test"].append(self.manager.evaluate_loss(self.model))
-                # if i%int(num_batches / 2)==0:
-                #     print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i, "\tlocal loss: %.4f" % self.loss_history["train"][-1])
-                # if i==num_batches-1:
-                #     print("\tWorker: %.4d" % (id(self) % 10000), "\tepoch:", epoch+1, "\tbatch:", i+1, "\tlocal loss: %.4f" % self.loss_history["train"][-1], "\n")
+                self.history["train_loss"].append(train_loss.item())
 
-        print("\tWorker: %.4d" % (id(self) % 10000), "\tlocal loss: %.2f" % self.loss_history["train"][-1])
+        loss_accuracy = self.manager.evaluate_model(self.model)
+        self.history["test_loss"].append(loss_accuracy[0])
+        self.history["test_acc"].append(loss_accuracy[1])
+        print(
+            self.name,
+            '{:.5f}'.format(self.history["test_loss"][-1]),
+            '{:.2f}'.format(self.history["test_acc"][-1])
+        )
 
         return {
             "state_dict": self.model.state_dict(),
