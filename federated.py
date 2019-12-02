@@ -139,9 +139,11 @@ class FederatedWorker:
         self.history["test_loss"].append(loss_accuracy[0])
         self.history["test_acc"].append(loss_accuracy[1])
         print(
-            self.name,
-            '{:.5f}'.format(self.history["test_loss"][-1]),
-            '{:.2f}'.format(self.history["test_acc"][-1])
+            '\twrkr {}\t\tloss: {:.4f}\tacc: {:.2%}'.format(
+                self.name,
+                self.history["test_loss"][-1],
+                self.history["test_acc"][-1] / 100,
+            )
         )
 
         return {
