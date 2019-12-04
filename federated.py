@@ -26,6 +26,7 @@ class FederatedManager:
                  name='',
                  *args, **kwargs):
         
+        self.dataloaders = dataloaders
         self.n_workers = len(dataloaders)
         self.n_epochs = n_epochs
         self.lr = lr
