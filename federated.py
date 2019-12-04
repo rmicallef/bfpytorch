@@ -3,7 +3,7 @@ Simulate Federated Learning on a single machine in PyTorch
 To use, create a FederatedManager and call its `round` method several times.
 """
 import torch
-import torch.nn
+import torch.nn as nn
 import torch.optim
 
 
@@ -16,11 +16,21 @@ def consume_dataset(dataset):
 
 class FederatedManager:
 
-    def __init__(self, dataloaders, make_model, loss_fn, test, n_epochs=1, lr=1e-2,
+    def __init__(self, dataloaders, 
+                 make_model, 
+                 test, 
+                 loss_fn=nn.CrossEntropyLoss(), 
+                 n_epochs=1, 
+                 lr=1e-2, 
+                 verbose=False, 
+                 name='',
                  *args, **kwargs):
+        
         self.n_workers = len(dataloaders)
         self.n_epochs = n_epochs
         self.lr = lr
+        self.verbose = verbose
+        self.name = name
         self.history = {"test_loss": [], "test_acc": []}
         self.make_model = make_model
         self.model = self.make_model()
@@ -29,8 +39,14 @@ class FederatedManager:
         self.Xtest, self.ytest = consume_dataset(test)
         self.workers = []
         for i, dl in enumerate(dataloaders):
-            self.workers.append(FederatedWorker(i, self, dl, loss_fn,
-                                                n_epochs=n_epochs, lr=lr, *args,
+            self.workers.append(FederatedWorker(i, 
+                                                self, 
+                                                dl, 
+                                                loss_fn,
+                                                n_epochs=n_epochs, 
+                                                lr=lr, 
+                                                verbose=verbose,
+                                                *args,
                                                 **kwargs))
         self.worker_loss_histories = [[] for _ in self.workers]
 
@@ -104,7 +120,7 @@ class FederatedWorker:
 
     def __init__(
         self, name, manager, dataloader, loss_fn, n_epochs=1, lr=1e-2,
-        momentum=0.5, participant=True
+        momentum=0.5, participant=True, verbose=False
     ):
         self.name = name
         self.manager = manager
@@ -117,6 +133,7 @@ class FederatedWorker:
         self.history = {"train_loss": [], "test_loss": [], "test_acc": []}
         self.lr = lr
         self.momentum = momentum
+        self.verbose = verbose
 
     def train(self):
         """
@@ -138,13 +155,15 @@ class FederatedWorker:
         loss_accuracy = self.manager.evaluate_model(self.model)
         self.history["test_loss"].append(loss_accuracy[0])
         self.history["test_acc"].append(loss_accuracy[1])
-        print(
-            '\twrkr {}\t\tloss: {:.4f}\tacc: {:.2%}'.format(
-                self.name,
-                self.history["test_loss"][-1],
-                self.history["test_acc"][-1] / 100,
+        
+        if(self.verbose):
+            print(
+                '\twrkr {}\t\tloss: {:.4f}\tacc: {:.2%}'.format(
+                    self.name,
+                    self.history["test_loss"][-1],
+                    self.history["test_acc"][-1] / 100,
+                )
             )
-        )
 
         return {
             "state_dict": self.model.state_dict(),

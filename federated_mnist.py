@@ -48,6 +48,10 @@ def index_to_dataset(y, p=None):
     return np.array([np.random.choice(10, p=ps[yi]) for yi in y])
 
 
+def make_stacked_dloaders(dset, p=None, batch_size=64, shuffle=True):
+    
+    return [DataLoader(dset, batch_size, shuffle) for dset in make_stacked_dsets(dset, p=p)]
+    
 def make_stacked_dsets(dset, p=None):
     _, y = consume_dataset(dset)
     classes = set(y.numpy())
