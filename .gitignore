@@ -1,4 +1,7 @@
 data/
 MNIST-data/
 __pycache__/
-
+venv/
+.ipynb_checkpoints/
+Sandbox.ipynb
+.gitignore
