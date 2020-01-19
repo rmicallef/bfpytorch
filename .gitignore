@@ -5,3 +5,5 @@ venv/
 .ipynb_checkpoints/
 Sandbox.ipynb
 .gitignore
+scikit_learn_data/
+out/
