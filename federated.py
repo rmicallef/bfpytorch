@@ -237,9 +237,9 @@ def plot_managers(mgrs, plot_workers=False):
     ax.legend();
 
 
-def evaluate_new_manager(name, training_dataset, testing_dataset, p=0.0, n_rounds=50, target_accuracy=None, model=None):
+def evaluate_new_manager(name, training_dataset, testing_dataset, p=0.0, n_rounds=50, target_accuracy=None, model=None, verbose=False):
     dataloaders = make_federated_dataloaders(training_dataset, p=p)
-    manager = FederatedManager(name, dataloaders, testing_dataset, model)
+    manager = FederatedManager(name, dataloaders, testing_dataset, model, verbose=verbose)
     manager.learn(n_rounds, target_accuracy)
     plot_managers(manager)
     return manager
