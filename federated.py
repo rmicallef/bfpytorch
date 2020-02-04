@@ -21,6 +21,7 @@ class FederatedManager:
                  n_epochs=1, 
                  lr=0.01, 
                  verbose=False, 
+                 device='cpu',
                  *args, **kwargs):
         
         self.dataloaders = dataloaders
@@ -36,6 +37,7 @@ class FederatedManager:
         self.loss_fn = loss_fn
         self.Xtest, self.ytest = split_dataset(test)
         self.workers = []
+        self.device = device
         for i, dl in enumerate(dataloaders):
             self.workers.append(FederatedWorker(i, 
                                                 self, 
@@ -44,8 +46,8 @@ class FederatedManager:
                                                 n_epochs=n_epochs, 
                                                 lr=lr, 
                                                 verbose=verbose,
-                                                *args,
-                                                **kwargs))
+                                                device=device,
+                                                *args, **kwargs))
         self.worker_loss_histories = [[] for _ in self.workers]
 
     def round(self):
@@ -95,6 +97,14 @@ class FederatedManager:
         Compute the loss and accuracy of model on test set.
         """
         model = model or self.model
+
+        print('\t\teval:', str(id(model))[-5:])
+        #print('mgrs:', str(id(self.model))[-5:])
+        model = model.to(self.device)
+
+        Xtest = self.Xtest.to(self.device)
+        ytest = self.ytest.to(self.device)
+
         was_training = model.training
         model.train(False)
         with torch.no_grad():
@@ -103,6 +113,9 @@ class FederatedManager:
             pred = output.argmax(dim=1, keepdim=True)
             correct = pred.eq(self.ytest.view_as(pred)).sum().item()
         model.train(was_training)
+
+        print('\t\t', loss, correct)
+
         return loss, 100. * correct / len(self.ytest)
 
     def record_loss(self):
@@ -157,7 +170,9 @@ class FederatedWorker:
                  lr=0.1,
                  momentum=0.5, 
                  participant=True, 
-                 verbose=False):
+                 verbose=False,
+                 device='cpu',
+                 ):
 
         self.name = name
         self.manager = manager
@@ -171,17 +186,24 @@ class FederatedWorker:
         self.lr = lr
         self.momentum = momentum
         self.verbose = verbose
+        self.device = device
 
     def train(self):
         """
         Train for n_epochs, then return the state dictionary of the model and
         the amount of training data used.
         """
+        self.model = self.model.to(self.device)
+
         optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr,
                                     momentum=self.momentum)
         self.model.train(True)
         for epoch in range(self.n_epochs):
             for i, (x, y) in enumerate(self.dataloader):
+
+                x = x.to(self.device)
+                y = y.to(self.device)
+
                 optimizer.zero_grad()
                 ypred = self.model(x)
                 train_loss = self.loss_fn(ypred, y)
@@ -190,15 +212,19 @@ class FederatedWorker:
                 self.history["train_loss"].append(train_loss.item())
 
         loss_accuracy = self.manager.evaluate_model(self.model)
+        print(loss_accuracy)
         self.history["test_loss"].append(loss_accuracy[0])
         self.history["test_accuracy"].append(loss_accuracy[1])
         
         if(self.verbose):
             print(
-                '\twrkr {}\t\tloss: {:.4f}\tacc: {:.2%}'.format(
+                '\twrkr {}\t\tloss: {:.4f} ({:+.4f})\tacc: {:6.2%} ({:+7.2%})\tmodel: {}'.format(
                     self.name,
                     self.history["test_loss"][-1],
+                    self.history["test_loss"][-1] - self.history["test_loss"][max(-2, -(len(self.history["test_loss"])))],
                     self.history["test_accuracy"][-1] / 100,
+                    (self.history["test_accuracy"][-1] - self.history["test_accuracy"][max(-2, -(len(self.history["test_accuracy"])))]) / 100,
+                    str(id(self.model))[-5:],
                 )
             )
 

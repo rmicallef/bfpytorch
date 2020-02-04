@@ -65,7 +65,11 @@ class DefaultNet(nn.Module):
 #'''
 
 def get_MNIST_dataloaders():
-
+    """
+    Download the standard MNIST dataset if it isn't already here, and make torch DataLoaders using the 
+    parameters from the torch example code.
+    """
+    
     # The normalization paramaters below are the mean and standard deviation of values in the MNIST set
     default_transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(), 
@@ -110,7 +114,6 @@ def plot_digit_histogram(dataloaders, title='', labels=[]):
         
     H = ax.hist(labels_by_dataloader, bins=range(11), label=labels, histtype='bar', align='left', rwidth=0.8)
 
-
 def make_custom_datasets(dataset, n_workers=0, allocations=None):
     
     _, y = split_dataset(dataset)
@@ -153,6 +156,11 @@ def make_federated_dataloaders(dataset, p=None, batch_size=default_training_batc
     return [torch.utils.data.DataLoader(dataset, batch_size, shuffle) for dataset in make_federated_datasets(dataset, p=p)]
     
 def make_federated_datasets(dataset, p=None):
+    """
+    Allocate the examples in a torch Dataset to exactly one of N torch Subset Datasets, where N is 
+    the number of classes in the input Dataset. Parameter p is the overweighting bias of samples of a
+    class in the Subset that corresponds to the class.
+    """
     _, y = split_dataset(dataset)
     classes = set(y.numpy())
     n_classes = len(classes)
@@ -170,10 +178,11 @@ def index_to_dataset(y, p=None):
     return np.array([np.random.choice(10, p=ps[yi]) for yi in y])
 
 def check_datasets(datasets):
-
+    """
+    Count and print the number of examples in each class in a torch Dataset or list of torch Datasets
+    """
     if not isinstance(datasets, list):
         datasets = [datasets]
-
     for dataset in datasets:
         _, labels = split_dataset(dataset)
         print(Counter(labels.numpy()))
