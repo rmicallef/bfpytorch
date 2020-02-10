@@ -6,10 +6,10 @@ To use, create a FederatedManager and call its `round` method several times.
 import torch
 from mnist_utils import split_dataset
 from mnist_utils import make_federated_dataloaders
+from mnist_utils import print_training_update
 from tqdm.notebook import trange
 import matplotlib.pyplot as plt
 
-# TODO: Clean up participant code? Will we ever need to have non-participating workers?
 class FederatedManager:
 
     def __init__(self, 
@@ -98,7 +98,7 @@ class FederatedManager:
         """
         model = model or self.model
 
-        print('\t\teval:', str(id(model))[-5:])
+        #print('\t\teval:', str(id(model))[-5:])
         #print('mgrs:', str(id(self.model))[-5:])
         model = model.to(self.device)
 
@@ -114,7 +114,7 @@ class FederatedManager:
             correct = pred.eq(self.ytest.view_as(pred)).sum().item()
         model.train(was_training)
 
-        print('\t\t', loss, correct)
+        #print('\t\t', loss, correct)
 
         return loss, 100. * correct / len(self.ytest)
 
@@ -140,12 +140,11 @@ class FederatedManager:
 
         for i in trange(n_rounds, desc='Rounds'):
             if(self.verbose):
-                print('Round', i)
+                print('\nRound {} workers:'.format(i))
             self.round()
             if(self.verbose):
-                print('\tcombined\tloss: {:.4f}\tacc: {:.2%}\n'.format(
-                    self.history['test_loss'][-1], self.history['test_accuracy'][-1] / 100,))
-                
+                print_training_update('\nRound {} combined:'.format(i), self.history, id(self.model))
+
             if(target_accuracy and (self.history['test_accuracy'][-1] >= target_accuracy)):
                 target_met = True
                 break;
@@ -195,8 +194,7 @@ class FederatedWorker:
         """
         self.model = self.model.to(self.device)
 
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr,
-                                    momentum=self.momentum)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=self.momentum)
         self.model.train(True)
         for epoch in range(self.n_epochs):
             for i, (x, y) in enumerate(self.dataloader):
@@ -212,29 +210,16 @@ class FederatedWorker:
                 self.history["train_loss"].append(train_loss.item())
 
         loss_accuracy = self.manager.evaluate_model(self.model)
-        print(loss_accuracy)
         self.history["test_loss"].append(loss_accuracy[0])
         self.history["test_accuracy"].append(loss_accuracy[1])
         
         if(self.verbose):
-            print(
-                '\twrkr {}\t\tloss: {:.4f} ({:+.4f})\tacc: {:6.2%} ({:+7.2%})\tmodel: {}'.format(
-                    self.name,
-                    self.history["test_loss"][-1],
-                    self.history["test_loss"][-1] - self.history["test_loss"][max(-2, -(len(self.history["test_loss"])))],
-                    self.history["test_accuracy"][-1] / 100,
-                    (self.history["test_accuracy"][-1] - self.history["test_accuracy"][max(-2, -(len(self.history["test_accuracy"])))]) / 100,
-                    str(id(self.model))[-5:],
-                )
-            )
+            print_training_update('\tworker {}:'.format(self.name), self.history, id(self.model))
 
         return {
             "state_dict": self.model.state_dict(),
             "n_samples": self.n_samples
         }
-
-
-
 
 
 def plot_managers(mgrs, plot_workers=False):
@@ -264,10 +249,10 @@ def plot_managers(mgrs, plot_workers=False):
 
 
 def evaluate_new_manager(name, training_dataset, testing_dataset, p=0.0, n_rounds=50, target_accuracy=None, model=None, verbose=False):
+    
     dataloaders = make_federated_dataloaders(training_dataset, p=p)
     manager = FederatedManager(name, dataloaders, testing_dataset, model, verbose=verbose)
     manager.learn(n_rounds, target_accuracy)
     plot_managers(manager)
     return manager
-
 

@@ -169,6 +169,11 @@ def make_federated_datasets(dataset, p=None):
     return [torch.utils.data.Subset(dataset, di) for di in dset_idx]
 
 def index_to_dataset(y, p=None):
+    """
+    Provides a two-dimensional array of probabilities that a given sample will be allocated to 
+    a specific worker. This implementation assumes that the number of workers is equal to the 
+    number of classes in the dataset.
+    """
     classes = set(y.numpy())
     n_classes = len(classes)
     p = p or 1/n_classes
@@ -177,12 +182,25 @@ def index_to_dataset(y, p=None):
     np.fill_diagonal(ps, p)
     return np.array([np.random.choice(10, p=ps[yi]) for yi in y])
 
-def check_datasets(datasets):
+def print_dataset_counters(datasets):
     """
-    Count and print the number of examples in each class in a torch Dataset or list of torch Datasets
+    Counts and print the number of examples in each class in a torch Dataset or list of torch Datasets
     """
     if not isinstance(datasets, list):
         datasets = [datasets]
     for dataset in datasets:
         _, labels = split_dataset(dataset)
         print(Counter(labels.numpy()))
+
+def print_training_update(prefix, history, model_id):
+
+    history_length = len(history["test_loss"])
+
+    print('{}\tloss: {:.4f} ({:+.4f})\tacc: {:6.2%} ({:+7.2%})\tmodel: {}'.format(
+        prefix,
+        history["test_loss"][-1],
+        history["test_loss"][-1] - history["test_loss"][max(-2, -history_length)],
+        history["test_accuracy"][-1] / 100,
+        (history["test_accuracy"][-1] - history["test_accuracy"][max(-2, -history_length)]) / 100,
+        str(model_id)[-5:])
+    )
