@@ -169,7 +169,7 @@ class FederatedWorker:
                  dataloader, 
                  loss_fn, 
                  n_epochs=1, 
-                 lr=0.1,
+                 lr=0.01,
                  momentum=0.5, 
                  participant=True, 
                  verbose=False,
@@ -198,6 +198,8 @@ class FederatedWorker:
         self.model = self.model.to(self.device)
 
         optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=self.momentum)
+        #optimizer = torch.optim.Adadelta(model.parameters(), lr=1.) # this is used in the example code, but it's slower
+
         self.model.train(True)
         for epoch in range(self.n_epochs):
             for i, (x, y) in enumerate(self.dataloader):
