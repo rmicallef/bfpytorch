@@ -102,13 +102,16 @@ class FederatedManager:
         #print('mgrs:', str(id(self.model))[-5:])
         model = model.to(self.device)
 
-        Xtest = self.Xtest.to(self.device)
-        ytest = self.ytest.to(self.device)
+        self.Xtest = self.Xtest.to(self.device)
+        self.ytest = self.ytest.to(self.device)
 
         was_training = model.training
         model.train(False)
         with torch.no_grad():
             output = model(self.Xtest)
+
+            output = output.to(self.device)
+
             loss = self.loss_fn(output, self.ytest).item()
             pred = output.argmax(dim=1, keepdim=True)
             correct = pred.eq(self.ytest.view_as(pred)).sum().item()
@@ -140,10 +143,10 @@ class FederatedManager:
 
         for i in trange(n_rounds, desc='Rounds'):
             if(self.verbose):
-                print('\nRound {} workers:'.format(i))
+                print('\nRound {:<3} workers:'.format(i))
             self.round()
             if(self.verbose):
-                print_training_update('\nRound {} combined:'.format(i), self.history, id(self.model))
+                print_training_update('\nRound {:<3} combined:'.format(i), self.history, id(self.model))
 
             if(target_accuracy and (self.history['test_accuracy'][-1] >= target_accuracy)):
                 target_met = True
@@ -214,7 +217,7 @@ class FederatedWorker:
         self.history["test_accuracy"].append(loss_accuracy[1])
         
         if(self.verbose):
-            print_training_update('\tworker {}:'.format(self.name), self.history, id(self.model))
+            print_training_update('\tworker {:2}:'.format(self.name), self.history, id(self.model))
 
         return {
             "state_dict": self.model.state_dict(),

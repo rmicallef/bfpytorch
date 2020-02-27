@@ -1,6 +1,6 @@
 torch
 torchvision
 numpy
-tqdm
+tqdm>=4.39.0
 matplotlib
 jupyter
