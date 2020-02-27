@@ -4,11 +4,12 @@ To use, create a FederatedManager and call its `round` method several times.
 """
 
 import torch
+import matplotlib.pyplot as plt
+from tqdm.notebook import trange
 from mnist_utils import split_dataset
 from mnist_utils import make_federated_dataloaders
 from mnist_utils import print_training_update
-from tqdm.notebook import trange
-import matplotlib.pyplot as plt
+
 
 class FederatedManager:
 
@@ -19,7 +20,8 @@ class FederatedManager:
                  make_model,
                  loss_fn=torch.nn.CrossEntropyLoss(), 
                  n_epochs=1, 
-                 lr=0.01, 
+                 lr=0.02, 
+                 momentum=0.5,
                  verbose=False, 
                  device='cpu',
                  *args, **kwargs):
@@ -45,6 +47,7 @@ class FederatedManager:
                                                 loss_fn,
                                                 n_epochs=n_epochs, 
                                                 lr=lr, 
+                                                momentum=momentum,
                                                 verbose=verbose,
                                                 device=device,
                                                 *args, **kwargs))
@@ -169,8 +172,8 @@ class FederatedWorker:
                  dataloader, 
                  loss_fn, 
                  n_epochs=1, 
-                 lr=0.01,
-                 momentum=0.5, 
+                 lr=0.02,
+                 momentum=0.5,
                  participant=True, 
                  verbose=False,
                  device='cpu',
